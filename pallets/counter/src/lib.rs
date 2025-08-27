@@ -49,10 +49,7 @@
 
 pub use pallet::*;
 
-use frame::{
-    prelude::*,
-    traits::{CheckedAdd, One},
-};
+use frame::prelude::*;
 
 #[cfg(test)]
 mod mock;
@@ -129,7 +126,7 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
-            let who = ensure_signed(origin)?;
+            let _ = ensure_signed(origin)?;
 
             // Update storage.
             let current = <Counter<T>>::get().unwrap_or(0);
@@ -147,7 +144,7 @@ pub mod pallet {
         #[pallet::call_index(1)]
         #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().reads_writes(1,1))]
         pub fn decrement(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let _who = ensure_signed(origin)?;
+            let _ = ensure_signed(origin)?;
 
             // Read a value from storage.
             let current = <Counter<T>>::get().unwrap_or(0);

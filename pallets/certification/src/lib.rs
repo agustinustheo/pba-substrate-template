@@ -49,10 +49,7 @@
 
 pub use pallet::*;
 
-use frame::{
-    prelude::*,
-    traits::Hash,
-};
+use frame::{prelude::*, traits::Hash};
 use scale_info::prelude::vec::Vec;
 
 #[cfg(test)]
@@ -94,10 +91,12 @@ pub mod pallet {
     /// Certification struct
     /// Information that is mutable by user
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_storage_derives/index.html>
-    #[derive(
-        Encode, Decode, TypeInfo, CloneNoBound, PartialEqNoBound, EqNoBound,
-    )]
-    pub struct Certification<AccountId: Clone + PartialEq + Eq, Hash: Clone + PartialEq + Eq, BlockNumber: Clone + PartialEq + Eq> {
+    #[derive(Encode, Decode, TypeInfo, CloneNoBound, PartialEqNoBound, EqNoBound)]
+    pub struct Certification<
+        AccountId: Clone + PartialEq + Eq,
+        Hash: Clone + PartialEq + Eq,
+        BlockNumber: Clone + PartialEq + Eq,
+    > {
         pub(crate) id: Hash,
         pub(crate) owner_id: AccountId,
         pub(crate) title: Vec<u8>,
@@ -105,13 +104,28 @@ pub mod pallet {
         pub(crate) created_at: BlockNumber,
         pub(crate) updated_at: BlockNumber,
     }
-    impl<AccountId: Clone + PartialEq + Eq, Hash: Clone + PartialEq + Eq, BlockNumber: Clone + PartialEq + Eq> Certification<AccountId, Hash, BlockNumber> {
-        pub(crate) fn new(id: Hash, owner_id: AccountId, title: Vec<u8>, description: Vec<u8>, created_at: BlockNumber, updated_at: BlockNumber) -> Self {
-            Self { id, owner_id, title, description, created_at, updated_at }
-        }
-
-        pub(crate) fn get_id(&self) -> &Hash {
-            &self.id
+    impl<
+            AccountId: Clone + PartialEq + Eq,
+            Hash: Clone + PartialEq + Eq,
+            BlockNumber: Clone + PartialEq + Eq,
+        > Certification<AccountId, Hash, BlockNumber>
+    {
+        pub(crate) fn new(
+            id: Hash,
+            owner_id: AccountId,
+            title: Vec<u8>,
+            description: Vec<u8>,
+            created_at: BlockNumber,
+            updated_at: BlockNumber,
+        ) -> Self {
+            Self {
+                id,
+                owner_id,
+                title,
+                description,
+                created_at,
+                updated_at,
+            }
         }
 
         pub(crate) fn get_owner_id(&self) -> &AccountId {
@@ -123,7 +137,12 @@ pub mod pallet {
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#storage>
     /// <https://paritytech.github.io/polkadot-sdk/master/frame_support/pallet_macros/attr.storage.html>
     #[pallet::storage]
-    pub type ListOfCertifications<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Certification<T::AccountId, T::Hash, BlockNumberFor<T>>>;
+    pub type ListOfCertifications<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        Certification<T::AccountId, T::Hash, BlockNumberFor<T>>,
+    >;
 
     /// Pallets use events to inform users when important changes are made.
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
@@ -170,7 +189,11 @@ pub mod pallet {
         /// storage and emits an event. This function must be dispatched by a signed extrinsic.
         #[pallet::call_index(0)]
         #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        pub fn add_certification(origin: OriginFor<T>, title: Vec<u8>, description: Vec<u8>) -> DispatchResultWithPostInfo {
+        pub fn add_certification(
+            origin: OriginFor<T>,
+            title: Vec<u8>,
+            description: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
@@ -181,14 +204,17 @@ pub mod pallet {
             let block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 
             // Update storage.
-            <ListOfCertifications<T>>::insert(T::Hashing::hash_of(&who), Certification::new(
+            <ListOfCertifications<T>>::insert(
                 T::Hashing::hash_of(&who),
-                who.clone(),
-                title,
-                description,
-                block_number,
-                block_number,
-            ));
+                Certification::new(
+                    T::Hashing::hash_of(&who),
+                    who.clone(),
+                    title,
+                    description,
+                    block_number,
+                    block_number,
+                ),
+            );
 
             // Emit an event.
             Self::deposit_event(Event::CertificationStored {
@@ -205,13 +231,19 @@ pub mod pallet {
         /// storage and emits an event. This function must be dispatched by a signed extrinsic.
         #[pallet::call_index(1)]
         #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        pub fn update_certification(origin: OriginFor<T>, certification_id: T::Hash, title: Vec<u8>, description: Vec<u8>) -> DispatchResultWithPostInfo {
+        pub fn update_certification(
+            origin: OriginFor<T>,
+            certification_id: T::Hash,
+            title: Vec<u8>,
+            description: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
             let who = ensure_signed(origin)?;
 
-            let certification = <ListOfCertifications<T>>::get(certification_id).ok_or(Error::<T>::CertificationNotFound)?;
+            let certification = <ListOfCertifications<T>>::get(certification_id)
+                .ok_or(Error::<T>::CertificationNotFound)?;
 
             ensure!(certification.get_owner_id() == &who, Error::<T>::NotOwner);
 
@@ -220,14 +252,17 @@ pub mod pallet {
             let block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 
             // Update storage.
-            <ListOfCertifications<T>>::insert(certification_id, Certification::new(
+            <ListOfCertifications<T>>::insert(
                 certification_id,
-                who.clone(),
-                title,
-                description,
-                certification.created_at,
-                block_number,
-            ));
+                Certification::new(
+                    certification_id,
+                    who.clone(),
+                    title,
+                    description,
+                    certification.created_at,
+                    block_number,
+                ),
+            );
 
             // Emit an event.
             Self::deposit_event(Event::CertificationUpdated {
@@ -244,13 +279,17 @@ pub mod pallet {
         /// storage and emits an event. This function must be dispatched by a signed extrinsic.
         #[pallet::call_index(2)]
         #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        pub fn remove_certification(origin: OriginFor<T>, certification_id: T::Hash) -> DispatchResultWithPostInfo {
+        pub fn remove_certification(
+            origin: OriginFor<T>,
+            certification_id: T::Hash,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
             let who = ensure_signed(origin)?;
 
-            let certification = <ListOfCertifications<T>>::get(certification_id).ok_or(Error::<T>::CertificationNotFound)?;
+            let certification = <ListOfCertifications<T>>::get(certification_id)
+                .ok_or(Error::<T>::CertificationNotFound)?;
 
             ensure!(certification.get_owner_id() == &who, Error::<T>::NotOwner);
 

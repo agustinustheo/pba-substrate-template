@@ -1,20 +1,24 @@
-use cumulus_primitives_core::ParaId;
-use parachain_template_runtime as runtime;
-use runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
-use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
-use sc_service::ChainType;
+use parachain_template_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use polkadot_sdk::{
+    cumulus_primitives_core::ParaId,
+    sc_chain_spec::{ChainSpecExtension, ChainSpecGroup, Properties},
+    sc_service::{self, ChainType},
+    sc_telemetry::serde_json,
+    sp_application_crypto::Pair as SpPair,
+    sp_core::{sr25519, Public},
+    sp_runtime::traits::{IdentifyAccount, Verify},
+    staging_xcm::prelude as xcm_prelude,
+};
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The default XCM version to set in genesis config.
-const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
+const SAFE_XCM_VERSION: u32 = xcm_prelude::XCM_VERSION;
 
 /// Helper function to generate a crypto pair from seed
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as SpPair>::Public {
     TPublic::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
@@ -34,7 +38,7 @@ pub struct Extensions {
 impl Extensions {
     /// Try to get the extension from the given `ChainSpec`.
     pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
-        sc_chain_spec::get_extension(chain_spec.extensions())
+        polkadot_sdk::sc_chain_spec::get_extension(chain_spec.extensions())
     }
 }
 
@@ -50,7 +54,7 @@ pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
 where
-    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+    AccountPublic: From<<TPublic::Pair as SpPair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
@@ -58,14 +62,14 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> runtime::SessionKeys {
-    runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> parachain_template_runtime::SessionKeys {
+    parachain_template_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> ChainSpec {
     // Give your base currency a unit name and decimal places
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "UNIT".into());
+    let mut properties = Properties::new();
+    properties.insert("tokenSymbol".into(), "PBA".into());
     properties.insert("tokenDecimals".into(), 12.into());
     properties.insert("ss58Format".into(), 42.into());
     properties.insert(
@@ -74,7 +78,8 @@ pub fn development_config() -> ChainSpec {
     );
 
     ChainSpec::builder(
-        runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+        parachain_template_runtime::WASM_BINARY
+            .expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "paseo-local".into(),
             // You MUST set this to the correct network!
@@ -119,8 +124,8 @@ pub fn development_config() -> ChainSpec {
 
 pub fn local_testnet_config() -> ChainSpec {
     // Give your base currency a unit name and decimal places
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "UNIT".into());
+    let mut properties = Properties::new();
+    properties.insert("tokenSymbol".into(), "PBA".into());
     properties.insert("tokenDecimals".into(), 12.into());
     properties.insert("ss58Format".into(), 42.into());
     properties.insert(
@@ -130,7 +135,8 @@ pub fn local_testnet_config() -> ChainSpec {
 
     #[allow(deprecated)]
     ChainSpec::builder(
-        runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+        parachain_template_runtime::WASM_BINARY
+            .expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "paseo-local".into(),
             // You MUST set this to the correct network!

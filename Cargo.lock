@@ -8422,6 +8422,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-certification"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+]
+
+[[package]]
 name = "pallet-child-bounties"
 version = "39.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8614,6 +8623,15 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-counter"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
 ]
 
 [[package]]
@@ -9152,15 +9170,6 @@ dependencies = [
  "sp-io",
  "sp-metadata-ir",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-parachain-template"
-version = "0.1.0"
-dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
 ]
 
 [[package]]
@@ -10014,7 +10023,7 @@ dependencies = [
  "docify",
  "hex-literal",
  "log",
- "pallet-parachain-template",
+ "pallet-certification",
  "parity-scale-codec",
  "polkadot-sdk 2503.0.1",
  "scale-info",

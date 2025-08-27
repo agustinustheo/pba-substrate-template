@@ -315,7 +315,9 @@ mod runtime {
 
     // Template
     #[runtime::pallet_index(50)]
-    pub type TemplatePallet = pallet_certification;
+    pub type CertificationPallet = pallet_certification;
+    #[runtime::pallet_index(51)]
+    pub type CounterPallet = pallet_counter;
 }
 
 #[docify::export(register_validate_block)]

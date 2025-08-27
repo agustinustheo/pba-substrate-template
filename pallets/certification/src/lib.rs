@@ -1,4 +1,4 @@
-//! # Template Pallet
+//! # Counter Pallet
 //!
 //! A pallet with minimal functionality to help developers understand the essential components of
 //! writing a FRAME pallet. It is typically used in beginner tutorials or in Polkadot SDK template
@@ -43,7 +43,7 @@
 //! - A **set of dispatchable functions** that define the pallet's functionality (denoted by the
 //!   `#[pallet::call]` attribute). See: [`dispatchables`].
 //!
-//! Run `cargo doc --package pallet-template --open` to view this pallet's documentation.
+//! Run `cargo doc --package pallet-counter --open` to view this pallet's documentation.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -51,8 +51,9 @@ pub use pallet::*;
 
 use frame::{
     prelude::*,
-    traits::{CheckedAdd, One},
+    traits::Hash,
 };
+use scale_info::prelude::vec::Vec;
 
 #[cfg(test)]
 mod mock;
@@ -87,25 +88,42 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
-    /// A struct to store a single block-number. Has all the right derives to store it in storage.
+    /// Certification struct
+    /// Information that is mutable by user
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_storage_derives/index.html>
-    #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, CloneNoBound, PartialEqNoBound)]
-    #[scale_info(skip_type_params(T))]
-    pub struct CompositeStruct<T: Config> {
-        /// Someone
-        pub(crate) someone: T::AccountId,
-        /// A block number. It's compact encoded to make it more efficient
-        #[codec(compact)]
-        pub(crate) block_number: BlockNumberFor<T>,
+    #[derive(
+        Encode, Decode, TypeInfo, CloneNoBound, PartialEqNoBound, EqNoBound,
+    )]
+    pub struct Certification<AccountId: Clone + PartialEq + Eq, Hash: Clone + PartialEq + Eq, BlockNumber: Clone + PartialEq + Eq> {
+        pub(crate) id: Hash,
+        pub(crate) owner_id: AccountId,
+        pub(crate) title: Vec<u8>,
+        pub(crate) description: Vec<u8>,
+        pub(crate) created_at: BlockNumber,
+        pub(crate) updated_at: BlockNumber,
+    }
+    impl<AccountId: Clone + PartialEq + Eq, Hash: Clone + PartialEq + Eq, BlockNumber: Clone + PartialEq + Eq> Certification<AccountId, Hash, BlockNumber> {
+        pub(crate) fn new(id: Hash, owner_id: AccountId, title: Vec<u8>, description: Vec<u8>, created_at: BlockNumber, updated_at: BlockNumber) -> Self {
+            Self { id, owner_id, title, description, created_at, updated_at }
+        }
+
+        pub(crate) fn get_id(&self) -> &Hash {
+            &self.id
+        }
+
+        pub(crate) fn get_owner_id(&self) -> &AccountId {
+            &self.owner_id
+        }
     }
 
     /// The pallet's storage items.
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#storage>
     /// <https://paritytech.github.io/polkadot-sdk/master/frame_support/pallet_macros/attr.storage.html>
     #[pallet::storage]
-    pub type Something<T: Config> = StorageValue<_, CompositeStruct<T>>;
+    pub type ListOfCertifications<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Certification<T::AccountId, T::Hash, BlockNumberFor<T>>>;
 
     /// Pallets use events to inform users when important changes are made.
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
@@ -113,9 +131,19 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// We usually use passive tense for events.
-        SomethingStored {
-            block_number: BlockNumberFor<T>,
+        CertificationStored {
             who: T::AccountId,
+            certification_id: T::Hash,
+            created_at: BlockNumberFor<T>,
+        },
+        CertificationUpdated {
+            who: T::AccountId,
+            certification_id: T::Hash,
+            updated_at: BlockNumberFor<T>,
+        },
+        CertificationRemoved {
+            who: T::AccountId,
+            certification_id: T::Hash,
         },
     }
 
@@ -123,10 +151,10 @@ pub mod pallet {
     /// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
     #[pallet::error]
     pub enum Error<T> {
-        /// Error names should be descriptive.
-        NoneValue,
-        /// Errors should have helpful documentation associated with them.
-        StorageOverflow,
+        /// The caller is not the owner of the certification.
+        NotOwner,
+        /// Certification not found.
+        CertificationNotFound,
     }
 
     #[pallet::hooks]
@@ -142,7 +170,7 @@ pub mod pallet {
         /// storage and emits an event. This function must be dispatched by a signed extrinsic.
         #[pallet::call_index(0)]
         #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        pub fn do_something(origin: OriginFor<T>, bn: u32) -> DispatchResultWithPostInfo {
+        pub fn add_certification(origin: OriginFor<T>, title: Vec<u8>, description: Vec<u8>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
@@ -150,47 +178,93 @@ pub mod pallet {
 
             // Convert the u32 into a block number. This is possible because the set of trait bounds
             // defined in [`frame_system::Config::BlockNumber`].
-            let block_number: BlockNumberFor<T> = bn.into();
+            let block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 
             // Update storage.
-            <Something<T>>::put(CompositeStruct {
-                someone: who.clone(),
+            <ListOfCertifications<T>>::insert(T::Hashing::hash_of(&who), Certification::new(
+                T::Hashing::hash_of(&who),
+                who.clone(),
+                title,
+                description,
                 block_number,
-            });
+                block_number,
+            ));
 
             // Emit an event.
-            Self::deposit_event(Event::SomethingStored { block_number, who });
+            Self::deposit_event(Event::CertificationStored {
+                who: who.clone(),
+                certification_id: T::Hashing::hash_of(&who),
+                created_at: block_number,
+            });
 
             // Return a successful [`DispatchResultWithPostInfo`] or [`DispatchResult`].
             Ok(().into())
         }
 
-        /// An example dispatchable that may throw a custom error.
+        /// An example dispatchable that takes a singles value as a parameter, writes the value to
+        /// storage and emits an event. This function must be dispatched by a signed extrinsic.
         #[pallet::call_index(1)]
-        #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().reads_writes(1,1))]
-        pub fn cause_error(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let _who = ensure_signed(origin)?;
+        #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        pub fn update_certification(origin: OriginFor<T>, certification_id: T::Hash, title: Vec<u8>, description: Vec<u8>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            // This function will return an error if the extrinsic is not signed.
+            // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
+            let who = ensure_signed(origin)?;
 
-            // Read a value from storage.
-            match <Something<T>>::get() {
-                // Return an error if the value has not been set.
-                None => Err(Error::<T>::NoneValue)?,
-                Some(mut old) => {
-                    // Increment the value read from storage; will error in the event of overflow.
-                    old.block_number = old
-                        .block_number
-                        .checked_add(&One::one())
-                        // equivalent is to:
-                        // .checked_add(&1u32.into())
-                        // both of which build a `One` instance for the type `BlockNumber`.
-                        .ok_or(Error::<T>::StorageOverflow)?;
-                    // Update the value in storage with the incremented result.
-                    <Something<T>>::put(old);
-                    // Explore how you can rewrite this using
-                    // [`frame_support::storage::StorageValue::mutate`].
-                    Ok(().into())
-                }
-            }
+            let certification = <ListOfCertifications<T>>::get(certification_id).ok_or(Error::<T>::CertificationNotFound)?;
+
+            ensure!(certification.get_owner_id() == &who, Error::<T>::NotOwner);
+
+            // Convert the u32 into a block number. This is possible because the set of trait bounds
+            // defined in [`frame_system::Config::BlockNumber`].
+            let block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+
+            // Update storage.
+            <ListOfCertifications<T>>::insert(certification_id, Certification::new(
+                certification_id,
+                who.clone(),
+                title,
+                description,
+                certification.created_at,
+                block_number,
+            ));
+
+            // Emit an event.
+            Self::deposit_event(Event::CertificationUpdated {
+                who: who.clone(),
+                certification_id,
+                updated_at: block_number,
+            });
+
+            // Return a successful [`DispatchResultWithPostInfo`] or [`DispatchResult`].
+            Ok(().into())
+        }
+
+        /// An example dispatchable that takes a singles value as a parameter, writes the value to
+        /// storage and emits an event. This function must be dispatched by a signed extrinsic.
+        #[pallet::call_index(2)]
+        #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        pub fn remove_certification(origin: OriginFor<T>, certification_id: T::Hash) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            // This function will return an error if the extrinsic is not signed.
+            // <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_origin/index.html>
+            let who = ensure_signed(origin)?;
+
+            let certification = <ListOfCertifications<T>>::get(certification_id).ok_or(Error::<T>::CertificationNotFound)?;
+
+            ensure!(certification.get_owner_id() == &who, Error::<T>::NotOwner);
+
+            // Remove from storage.
+            <ListOfCertifications<T>>::remove(certification_id.clone());
+
+            // Emit an event.
+            Self::deposit_event(Event::CertificationRemoved {
+                who: who.clone(),
+                certification_id,
+            });
+
+            // Return a successful [`DispatchResultWithPostInfo`] or [`DispatchResult`].
+            Ok(().into())
         }
     }
 }

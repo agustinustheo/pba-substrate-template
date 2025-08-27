@@ -10024,6 +10024,7 @@ dependencies = [
  "hex-literal",
  "log",
  "pallet-certification",
+ "pallet-counter",
  "parity-scale-codec",
  "polkadot-sdk 2503.0.1",
  "scale-info",
